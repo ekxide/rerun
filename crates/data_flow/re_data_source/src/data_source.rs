@@ -61,6 +61,9 @@ pub enum LogDataSource {
 
     /// A `rerun+http://` URI pointing to a proxy.
     RedapProxy(re_uri::ProxyUri),
+
+    #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+    Iceoryx2 { service_name: String },
 }
 
 /// Options for [`LogDataSource::from_uri`].
@@ -88,6 +91,17 @@ impl LogDataSource {
         url: &str,
         options: &FromUriOptions,
     ) -> Option<Self> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(service_name) = url.strip_prefix("iceoryx2://") {
+            if service_name.is_empty() {
+                return None;
+            }
+
+            return Some(Self::Iceoryx2 {
+                service_name: service_name.to_owned(),
+            });
+        }
+
         #[cfg(not(target_arch = "wasm32"))]
         {
             fn looks_like_a_file_path(uri: &str) -> bool {
@@ -366,6 +380,62 @@ impl LogDataSource {
             }
 
             Self::RedapProxy(uri) => Ok(re_grpc_client::stream(async_runtime, uri)),
+
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => {
+                use iceoryx2::prelude::*;
+
+                let (tx, rx) = re_log_channel::log_channel(re_log_channel::LogSource::Sdk);
+
+                std::thread::spawn(move || {
+                    let result = (|| -> anyhow::Result<()> {
+                        let node = NodeBuilder::new()
+                            .create::<iceoryx2::service::ipc_threadsafe::Service>()?;
+
+                        let service = node
+                            .service_builder(&(service_name.as_str()).try_into()?)
+                            .publish_subscribe::<[u8]>()
+                            .subscriber_max_buffer_size(128)
+                            .open_or_create()?;
+
+                        let subscriber = service.subscriber_builder().buffer_size(128).create()?;
+
+                        println!("Iceoryx2 LogDataSource listening on service: {service_name}");
+
+                        while node.wait(std::time::Duration::from_millis(1)).is_ok() {
+                            while let Some(sample) = subscriber.receive()? {
+                                let bytes = sample.payload();
+
+                                println!("Viewer received {} bytes", bytes.len());
+
+                                let cursor = std::io::Cursor::new(bytes);
+                                let reader = std::io::BufReader::new(cursor);
+
+                                let decoder = re_log_encoding::DecoderApp::decode_eager(reader)?;
+
+                                for msg in decoder {
+                                    let msg = msg?;
+
+                                    println!("Viewer decoded LogMsg");
+
+                                    if tx.send(msg.into()).is_err() {
+                                        // Viewer no longer wants the data.
+                                        return Ok(());
+                                    }
+                                }
+                            }
+                        }
+
+                        Ok(())
+                    })();
+
+                    if let Err(err) = result {
+                        re_log::error!("Iceoryx2 source failed: {err}");
+                    }
+                });
+
+                Ok(rx)
+            }
         }
     }
 
@@ -416,6 +486,12 @@ impl LogDataSource {
                 file_extension: None,
                 file_source: None,
             },
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { .. } => LogDataSourceAnalytics {
+                source_type: "iceoryx2",
+                file_extension: None,
+                file_source: None,
+            },
         }
     }
 
@@ -446,6 +522,8 @@ impl LogDataSource {
             Self::Stdin => Some("-".to_owned()),
             Self::RedapDatasetSegment { uri, .. } => Some(uri.to_string()),
             Self::RedapProxy(uri) => Some(uri.to_string()),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => Some(format!("iceoryx2://{service_name}")),
         }
     }
 }

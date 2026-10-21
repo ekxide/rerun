@@ -67,6 +67,10 @@ pub enum ViewerOpenUrl {
     /// See also [`LogDataSource::RedapProxy`].
     RedapProxy(re_uri::ProxyUri),
 
+    //Iceoryx2
+    #[cfg(not(target_arch = "wasm32"))]
+    Iceoryx2 { service_name: String },
+
     /// A URL that points to a redap server.
     RedapCatalog(re_uri::CatalogUri),
 
@@ -116,6 +120,11 @@ impl std::fmt::Debug for ViewerOpenUrl {
             Self::RedapEntry(uri) => write!(f, "RedapEntry({uri})"),
             Self::RedapFolder(uri) => write!(f, "RedapFolder({uri})"),
             Self::WebEventListener => write!(f, "WebEventListener"),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => {
+                //Iceroyx2
+                write!(f, "Iceoryx2({service_name})")
+            }
             Self::WebViewerUrl {
                 base_url,
                 url_parameters,
@@ -215,6 +224,9 @@ impl ViewerOpenUrl {
                 } => Ok(Self::RedapDataset(uri)),
 
                 LogDataSource::RedapProxy(proxy_uri) => Ok(Self::RedapProxy(proxy_uri)),
+
+                #[cfg(not(target_arch = "wasm32"))]
+                LogDataSource::Iceoryx2 { service_name } => Ok(Self::Iceoryx2 { service_name }), //Iceoryx2
             }
         } else if let Ok(url) = parse_webviewer_url(url) {
             // Web viewer URL with `url` parameters.
@@ -464,6 +476,10 @@ impl ViewerOpenUrl {
             Self::RedapProxy(proxy_uri) => {
                 vec1![proxy_uri.to_string()]
             }
+            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+            Self::Iceoryx2 { service_name } => {
+                vec1![format!("iceoryx2://{service_name}")]
+            }
 
             Self::RedapCatalog(catalog_uri) => {
                 // The welcome page is a fake catalog right now.
@@ -568,6 +584,8 @@ impl ViewerOpenUrl {
                     })
             }
             Self::RedapProxy(uri) => Some(LogSource::MessageProxy(uri.clone())),
+            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+            Self::Iceoryx2 { .. } => None,
             Self::WebEventListener => Some(LogSource::RrdWebEvent),
             Self::WebViewerUrl { url_parameters, .. } => (url_parameters.len() == 1)
                 .then(|| url_parameters.first().get_data_source())
@@ -648,6 +666,12 @@ impl ViewerOpenUrl {
                 command_sender.send_system(SystemCommand::set_selection(Item::RedapServer(
                     proxy_uri.origin,
                 )));
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => {
+                command_sender.send_system(SystemCommand::LoadDataSource(
+                    LogDataSource::Iceoryx2 { service_name },
+                ));
             }
             Self::RedapCatalog(uri) => {
                 command_sender.send_system(SystemCommand::AddRedapServer(uri.origin.clone()));
@@ -736,6 +760,9 @@ impl ViewerOpenUrl {
             #[cfg(not(target_arch = "wasm32"))]
             Self::FilePath(..) => self,
 
+            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+            Self::Iceoryx2 { .. } => self,
+
             Self::ChunkStoreBrowser { .. } => self,
 
             Self::RedapDataset(uri) => Self::RedapDataset(uri.without_fragment()),
@@ -771,6 +798,8 @@ impl ViewerOpenUrl {
                 }
             }
             Self::RedapProxy(..) => None,
+            #[cfg(not(target_arch = "wasm32"))] //Iceroyx2
+            Self::Iceoryx2 { .. } => None,
             Self::RedapCatalog(..) => None,
             Self::RedapEntry(..) => None,
             Self::RedapFolder(..) => None,

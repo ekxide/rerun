@@ -9,6 +9,8 @@ use re_log_encoding::{EncodeError, Encoder};
 use re_log_msg::{BlueprintActivationCommand, LogMsg};
 use re_log_types::StoreId;
 
+use iceoryx2::prelude::*; // Maxim
+
 use crate::RecordingStream;
 
 /// An error that can occur when flushing.
@@ -608,6 +610,16 @@ impl LogSink for GrpcSink {
     fn send(&self, mut log_msg: LogMsg) {
         // Used for latency measurements:
         log_msg.track_latency(re_sorbet::LatencyLocation::GrpcSink);
+        //kodiert log_msg test maxim
+        //         let mut encoder = re_log_encoding::Encoder::local().unwrap();
+        //
+        //         encoder.append(&log_msg).unwrap();
+        //
+        //         encoder.finish().unwrap();
+        //
+        //         let bytes = encoder.into_inner().unwrap();
+        //
+        //         println!("Serialized LogMsg: {} bytes", bytes.len());
 
         self.client.send_blocking(log_msg);
     }
@@ -624,5 +636,57 @@ impl LogSink for GrpcSink {
     fn default_batcher_config(&self) -> ChunkBatcherConfig {
         // The GRPC sink is typically used for live streams.
         ChunkBatcherConfig::LOW_LATENCY
+    }
+}
+
+//Iceoryx2
+pub struct Iceoryx2Sink {
+    publisher:
+        iceoryx2::port::publisher::Publisher<iceoryx2::service::ipc_threadsafe::Service, [u8], ()>,
+}
+
+impl Iceoryx2Sink {
+    pub fn new() -> Self {
+        let node = NodeBuilder::new()
+            .create::<iceoryx2::service::ipc_threadsafe::Service>()
+            .unwrap();
+
+        let service = node
+            .service_builder(&"rerun/iceoryx".try_into().unwrap())
+            .publish_subscribe::<[u8]>()
+            .subscriber_max_buffer_size(128)
+            .open_or_create()
+            .unwrap();
+
+        let publisher = service
+            .publisher_builder()
+            .initial_max_slice_len(1024 * 1024)
+            .create()
+            .unwrap();
+
+        Self { publisher }
+    }
+}
+
+impl LogSink for Iceoryx2Sink {
+    fn send(&self, log_msg: LogMsg) {
+        let mut encoder = re_log_encoding::Encoder::local().unwrap();
+
+        encoder.append(&log_msg).unwrap();
+        encoder.finish().unwrap();
+
+        let bytes = encoder.into_inner().unwrap();
+
+        let sample = self.publisher.loan_slice_uninit(bytes.len()).unwrap();
+
+        let sample = sample.write_from_slice(&bytes);
+
+        sample.send().unwrap();
+
+        println!("Sent {} bytes over iceoryx2", bytes.len());
+    }
+
+    fn flush_blocking(&self, _timeout: Duration) -> Result<(), SinkFlushError> {
+        Ok(())
     }
 }

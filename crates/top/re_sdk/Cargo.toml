@@ -59,7 +59,7 @@ re_sdk_types.workspace = true
 re_sorbet.workspace = true
 re_tracing.workspace = true
 re_uri.workspace = true
-
+iceoryx2.workspace = true #Iceoryx2
 ahash.workspace = true
 const_format.workspace = true
 crossbeam.workspace = true

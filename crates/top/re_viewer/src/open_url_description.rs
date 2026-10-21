@@ -64,6 +64,12 @@ impl ViewerOpenUrlDescription {
                 target_short: None,
             },
 
+            #[cfg(not(target_arch = "wasm32"))]
+            ViewerOpenUrl::Iceoryx2 { service_name } => Self {
+                category: "iceoryx2",
+                target_short: Some(service_name.clone()),
+            },
+
             ViewerOpenUrl::RedapCatalog(uri) => Self {
                 category: "Catalog",
                 target_short: Some(uri.origin.host.to_string()),

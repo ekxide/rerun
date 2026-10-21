@@ -1,0 +1,16 @@
+mod agent_panel;
+mod chat_ui;
+mod linkify;
+mod pasted_image;
+mod setup_ui;
+mod tool_call_ui;
+mod transcript_ui;
+
+pub use agent_panel::{AgentPanel, HostButton, RECOMMENDED_WIDTH};
+
+/// Which of the two views the panel shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Screen {
+    Setup,
+    Chat,
+}

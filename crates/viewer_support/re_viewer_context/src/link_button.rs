@@ -141,6 +141,12 @@ pub fn url_atoms(url: &str, lookup: &UrlNameLookup, theme: Theme) -> Option<Link
                 (LinkKind::Recording.icon(theme), name),
             ))
         }
+        //Iceoryx2
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewerOpenUrl::Iceoryx2 { service_name } => Some(LinkButton::new(
+            url,
+            (LinkKind::Recording.icon(theme), service_name),
+        )),
 
         ViewerOpenUrl::WebViewerUrl { url_parameters, .. } => {
             // A web-viewer share link wrapping one or more content URLs: show the inner one's button,

@@ -1,0 +1,28 @@
+use re_log_types::EntityPath;
+
+use super::FilterIsNotNull;
+
+impl FilterIsNotNull {
+    /// Create a new [`Self`].
+    pub fn new(active: bool, entity_path: &EntityPath, column_name: String) -> Self {
+        let datatype = crate::blueprint::encodings::FilterIsNotNull {
+            active: active.into(),
+            column: crate::blueprint::encodings::ComponentColumnSelector::new(
+                entity_path,
+                column_name,
+            ),
+        };
+
+        Self(datatype)
+    }
+
+    /// Is the filter active?
+    pub fn active(&self) -> bool {
+        self.active.into()
+    }
+
+    /// Entity path of the filter column.
+    pub fn entity_path(&self) -> EntityPath {
+        self.column.entity_path()
+    }
+}

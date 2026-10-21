@@ -542,6 +542,7 @@ wayland-sys = "0.31.11"
 web-sys = "0.3.103"
 web-time = "1.1"
 webbrowser = "1.2"
+iceoryx2 = "0.10.0" #Iceroyx2 crate
 windows-core = { version = "0.62.2", default-features = false, features = [
   "std",
 ] } # Ensure `std` is enabled so `windows-result::Error` impls `core::error::Error` (needed by wgpu-hal gles on Windows)

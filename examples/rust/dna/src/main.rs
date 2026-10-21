@@ -1,6 +1,7 @@
 //! The example from our Getting Started page.
 
 use std::f32::consts::TAU;
+use std::time::Duration;
 
 use itertools::Itertools as _;
 use rand::Rng as _;
@@ -12,7 +13,13 @@ const NUM_POINTS: usize = 100;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     rerun::external::re_log::setup_logging();
 
-    let rec = rerun::RecordingStreamBuilder::new("rerun_example_dna_abacus").spawn()?;
+    //let rec = rerun::RecordingStreamBuilder::new("rerun_example_dna_abacus").spawn()?;
+
+    let rec = rerun::RecordingStreamBuilder::new("rerun_example_dna_abacus").buffered()?;
+    //Iceoryx2 Sink set for the recordstream
+    rec.set_sink(Box::new(rerun::sink::Iceoryx2Sink::new()));
+
+    //std::thread::sleep(Duration::from_secs(5));
 
     let (points1, colors1) = color_spiral(NUM_POINTS, 2.0, 0.02, 0.0, 0.1);
     let (points2, colors2) = color_spiral(NUM_POINTS, 2.0, 0.02, TAU * 0.5, 0.1);

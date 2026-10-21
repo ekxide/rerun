@@ -108,6 +108,9 @@ impl App {
                     return;
                 }
             }
+            //Iceoryx2
+            #[cfg(not(target_arch = "wasm32"))]
+            LogDataSource::Iceoryx2 { .. } => {}
 
             LogDataSource::File {
                 path,

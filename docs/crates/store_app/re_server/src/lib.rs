@@ -1,0 +1,71 @@
+#![allow(clippy::iter_over_hash_type)]
+#![recursion_limit = "512"] // `#[instrument]` on lance futures nests deeply (matches redap_manifest_registry / redap_tables)
+
+//! An ephemeral local Rerun catalog server.
+
+#[cfg(not(target_arch = "wasm32"))]
+mod entrypoint;
+#[cfg(not(target_arch = "wasm32"))]
+mod layers;
+mod named_path;
+mod rerun_cloud;
+#[cfg(not(target_arch = "wasm32"))]
+mod routes;
+#[cfg(not(target_arch = "wasm32"))]
+mod server;
+mod store;
+
+pub use self::named_path::{NamedPath, NamedPathCollection};
+pub use self::rerun_cloud::{
+    RerunCloudHandler, RerunCloudHandlerBuilder, RerunCloudHandlerSettings,
+};
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::{
+    entrypoint::Args,
+    layers::InjectedErrors,
+    server::{Server, ServerBuilder, ServerError, ServerHandle},
+};
+
+/// The capability names this build supports.
+///
+/// On wasm the server reads `file://` sources from OPFS, and only the viewer itself puts files
+/// there, so that build does not support registering them.
+pub(crate) fn capability_names() -> Vec<String> {
+    cfg_select! {
+        target_arch = "wasm32" => Vec::new(),
+        _ => {
+            vec![
+                re_protos::capabilities::catalog_write_register("file"),
+                re_protos::capabilities::CATALOG_WRITE_STAGING.to_owned(),
+            ]
+        }
+    }
+}
+
+/// What this build of the server implements and supports, for any caller.
+///
+/// Same as what `/WhoAmI` advertises, for a client that talks to the server in-process and never
+/// makes that call.
+pub fn capabilities() -> re_protos::capabilities::ServerCapabilities {
+    re_protos::capabilities::ServerCapabilities::from_advertised(capability_names())
+}
+
+/// What should we do on error?
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum OnError {
+    Continue,
+    Abort,
+}
+
+#[cfg(test)]
+mod tests {
+    /// The native build reads `file://` sources and provides staging storage for uploads.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn the_native_build_advertises_write_capabilities() {
+        let capabilities = super::capabilities();
+
+        assert_eq!(capabilities.register_schemes(), vec!["file"]);
+        assert!(capabilities.has(re_protos::capabilities::CATALOG_WRITE_STAGING));
+    }
+}
