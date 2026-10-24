@@ -639,32 +639,50 @@ impl LogSink for GrpcSink {
     }
 }
 
-//Iceoryx2
+/// Errors that can occur when creating an iceoryx2 sink.
+#[derive(Debug, thiserror::Error)]
+pub enum Iceoryx2SinkError {
+    /// Failed to create the iceoryx2 node.
+    #[error("Failed to create iceoryx2 node")]
+    Node(#[from] iceoryx2::node::NodeCreationFailure),
+
+    /// The provided service name is invalid.
+    #[error("Invalid iceoryx2 service name")]
+    ServiceName(#[from] iceoryx2::service::service_name::ServiceNameError),
+
+    /// Failed to open or create the publish-subscribe service.
+    #[error("Failed to open or create iceoryx2 service")]
+    Service(
+        #[from] iceoryx2::service::builder::publish_subscribe::PublishSubscribeOpenOrCreateError,
+    ),
+
+    /// Failed to create the publisher.
+    #[error("Failed to create iceoryx2 publisher")]
+    Publisher(#[from] iceoryx2::port::publisher::PublisherCreateError),
+}
+
 pub struct Iceoryx2Sink {
     publisher:
         iceoryx2::port::publisher::Publisher<iceoryx2::service::ipc_threadsafe::Service, [u8], ()>,
 }
 
 impl Iceoryx2Sink {
-    pub fn new() -> Self {
-        let node = NodeBuilder::new()
-            .create::<iceoryx2::service::ipc_threadsafe::Service>()
-            .unwrap();
+    /// Creates an iceoryx2 sink using the `rerun/iceoryx` service.
+    pub fn new() -> Result<Self, Iceoryx2SinkError> {
+        let node = NodeBuilder::new().create::<iceoryx2::service::ipc_threadsafe::Service>()?;
 
         let service = node
-            .service_builder(&"rerun/iceoryx".try_into().unwrap())
+            .service_builder(&"rerun/iceoryx".try_into()?)
             .publish_subscribe::<[u8]>()
             .subscriber_max_buffer_size(128)
-            .open_or_create()
-            .unwrap();
+            .open_or_create()?;
 
         let publisher = service
             .publisher_builder()
             .initial_max_slice_len(1024 * 1024)
-            .create()
-            .unwrap();
+            .create()?;
 
-        Self { publisher }
+        Ok(Self { publisher })
     }
 }
 

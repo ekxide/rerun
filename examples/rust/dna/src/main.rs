@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let rec = rerun::RecordingStreamBuilder::new("rerun_example_dna_abacus").buffered()?;
     //Iceoryx2 Sink set for the recordstream
-    rec.set_sink(Box::new(rerun::sink::Iceoryx2Sink::new()));
+    rec.set_sink(Box::new(rerun::sink::Iceoryx2Sink::new()?));
 
     //std::thread::sleep(Duration::from_secs(5));
 

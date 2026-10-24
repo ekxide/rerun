@@ -88,9 +88,9 @@ pub mod sink {
     pub use crate::binary_stream_sink::{BinaryStreamSink, BinaryStreamStorage};
     pub use crate::log_sink::{
         BufferedSink, CallbackSink, GrpcSink, GrpcSinkConnectionFailure, GrpcSinkConnectionState,
-        Iceoryx2Sink, IntoMultiSink, LogSink, MemorySink, MemorySinkStorage, MultiSink,
-        SinkFlushError,
-    }; //Iceoryx2 Sink
+        Iceoryx2Sink, Iceoryx2SinkError, IntoMultiSink, LogSink, MemorySink, MemorySinkStorage,
+        MultiSink, SinkFlushError,
+    };
 }
 
 /// Things directly related to logging.
