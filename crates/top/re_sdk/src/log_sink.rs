@@ -661,11 +661,20 @@ pub enum Iceoryx2SinkError {
     Publisher(#[from] iceoryx2::port::publisher::PublisherCreateError),
 }
 
+/// A log sink that transports Rerun messages using iceoryx2 shared memory.
+///
+/// Each LogMsg is encoded into a separate RRD stream before being
+/// published to the configured iceoryx2 service.
 pub struct Iceoryx2Sink {
     publisher:
         iceoryx2::port::publisher::Publisher<iceoryx2::service::ipc_threadsafe::Service, [u8], ()>,
 }
 
+/// Creates a new iceoryx2 sink using the `rerun/iceoryx` service.
+///
+/// # Errors
+///
+/// Returns an error if the node, service, or publisher cannot be created.
 impl Iceoryx2Sink {
     /// Creates an iceoryx2 sink using the `rerun/iceoryx` service.
     pub fn new() -> Result<Self, Iceoryx2SinkError> {
@@ -688,7 +697,7 @@ impl Iceoryx2Sink {
 
 impl LogSink for Iceoryx2Sink {
     fn send(&self, log_msg: LogMsg) {
-        // 1. Create encoder
+        // Encode each LogMsg as a complete RRD stream.
         let mut encoder = match re_log_encoding::Encoder::local() {
             Ok(encoder) => encoder,
             Err(err) => {
@@ -697,7 +706,6 @@ impl LogSink for Iceoryx2Sink {
             }
         };
 
-        // 2. Encode LogMsg
         if let Err(err) = encoder.append(&log_msg) {
             re_log::error!("Failed to encode LogMsg: {err}");
             return;
@@ -716,7 +724,6 @@ impl LogSink for Iceoryx2Sink {
             }
         };
 
-        // 3. Loan shared memory
         let sample = match self.publisher.loan_slice_uninit(bytes.len()) {
             Ok(sample) => sample,
             Err(err) => {
@@ -725,10 +732,8 @@ impl LogSink for Iceoryx2Sink {
             }
         };
 
-        // 4. Write data into shared memory
         let sample = sample.write_from_slice(&bytes);
 
-        // 5. Publish sample
         if let Err(err) = sample.send() {
             re_log::error!("Failed to publish iceoryx2 sample: {err}");
             return;
