@@ -665,6 +665,7 @@ pub enum Iceoryx2SinkError {
 ///
 /// Each LogMsg is encoded into a separate RRD stream before being
 /// published to the configured iceoryx2 service.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct Iceoryx2Sink {
     publisher:
         iceoryx2::port::publisher::Publisher<iceoryx2::service::ipc_threadsafe::Service, [u8], ()>,
@@ -743,6 +744,8 @@ impl LogSink for Iceoryx2Sink {
     }
 
     fn flush_blocking(&self, _timeout: Duration) -> Result<(), SinkFlushError> {
+        // Samples are published synchronously in `send()`, so there is no
+        // additional outgoing buffer to flush.
         Ok(())
     }
 }
