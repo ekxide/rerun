@@ -688,20 +688,53 @@ impl Iceoryx2Sink {
 
 impl LogSink for Iceoryx2Sink {
     fn send(&self, log_msg: LogMsg) {
-        let mut encoder = re_log_encoding::Encoder::local().unwrap();
+        // 1. Create encoder
+        let mut encoder = match re_log_encoding::Encoder::local() {
+            Ok(encoder) => encoder,
+            Err(err) => {
+                re_log::error!("Failed to create RRD encoder: {err}");
+                return;
+            }
+        };
 
-        encoder.append(&log_msg).unwrap();
-        encoder.finish().unwrap();
+        // 2. Encode LogMsg
+        if let Err(err) = encoder.append(&log_msg) {
+            re_log::error!("Failed to encode LogMsg: {err}");
+            return;
+        }
 
-        let bytes = encoder.into_inner().unwrap();
+        if let Err(err) = encoder.finish() {
+            re_log::error!("Failed to finish RRD encoding: {err}");
+            return;
+        }
 
-        let sample = self.publisher.loan_slice_uninit(bytes.len()).unwrap();
+        let bytes = match encoder.into_inner() {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                re_log::error!("Failed to extract encoded bytes: {err}");
+                return;
+            }
+        };
 
+        // 3. Loan shared memory
+        let sample = match self.publisher.loan_slice_uninit(bytes.len()) {
+            Ok(sample) => sample,
+            Err(err) => {
+                re_log::error!("Failed to loan iceoryx2 sample: {err}");
+                return;
+            }
+        };
+
+        // 4. Write data into shared memory
         let sample = sample.write_from_slice(&bytes);
 
-        sample.send().unwrap();
+        // 5. Publish sample
+        if let Err(err) = sample.send() {
+            re_log::error!("Failed to publish iceoryx2 sample: {err}");
+            return;
+        }
 
-        println!("Sent {} bytes over iceoryx2", bytes.len());
+        re_log::trace!("Sent {} bytes over iceoryx2", bytes.len());
     }
 
     fn flush_blocking(&self, _timeout: Duration) -> Result<(), SinkFlushError> {
