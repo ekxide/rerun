@@ -385,30 +385,34 @@ impl LogDataSource {
             Self::Iceoryx2 { service_name } => {
                 use iceoryx2::prelude::*;
 
+                // Initialize iceoryx2 before spawning the receiving thread.
+                let node =
+                    NodeBuilder::new().create::<iceoryx2::service::ipc_threadsafe::Service>()?;
+
+                let service = node
+                    .service_builder(&service_name.as_str().try_into()?)
+                    .publish_subscribe::<[u8]>()
+                    .subscriber_max_buffer_size(128)
+                    .open_or_create()?;
+
+                let subscriber = service.subscriber_builder().buffer_size(128).create()?;
+
                 let (tx, rx) = re_log_channel::log_channel(re_log_channel::LogSource::Iceoryx2 {
                     service_name: service_name.clone(),
                 });
 
                 std::thread::spawn(move || {
+                    // Keep the service alive for the lifetime of the subscriber.
+                    let _service = service;
+
+                    re_log::debug!("Listening for iceoryx2 messages on service: {service_name}");
+
                     let result = (|| -> anyhow::Result<()> {
-                        let node = NodeBuilder::new()
-                            .create::<iceoryx2::service::ipc_threadsafe::Service>()?;
-
-                        let service = node
-                            .service_builder(&(service_name.as_str()).try_into()?)
-                            .publish_subscribe::<[u8]>()
-                            .subscriber_max_buffer_size(128)
-                            .open_or_create()?;
-
-                        let subscriber = service.subscriber_builder().buffer_size(128).create()?;
-
-                        println!("Iceoryx2 LogDataSource listening on service: {service_name}");
-
                         while node.wait(std::time::Duration::from_millis(1)).is_ok() {
                             while let Some(sample) = subscriber.receive()? {
                                 let bytes = sample.payload();
 
-                                println!("Viewer received {} bytes", bytes.len());
+                                re_log::trace!("Received {} bytes over iceoryx2", bytes.len());
 
                                 let cursor = std::io::Cursor::new(bytes);
                                 let reader = std::io::BufReader::new(cursor);
@@ -417,8 +421,6 @@ impl LogDataSource {
 
                                 for msg in decoder {
                                     let msg = msg?;
-
-                                    println!("Viewer decoded LogMsg");
 
                                     if tx.send(msg.into()).is_err() {
                                         // Viewer no longer wants the data.
