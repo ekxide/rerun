@@ -2,14 +2,14 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(not(target_arch = "wasm32"))]
+use iceoryx2::prelude::*;
 use parking_lot::Mutex;
 use re_chunk::ChunkBatcherConfig;
 use re_grpc_client::write::{Client as MessageProxyClient, GrpcFlushError, Options};
 use re_log_encoding::{EncodeError, Encoder};
 use re_log_msg::{BlueprintActivationCommand, LogMsg};
 use re_log_types::StoreId;
-
-use iceoryx2::prelude::*; // Maxim
 
 use crate::RecordingStream;
 
@@ -640,6 +640,7 @@ impl LogSink for GrpcSink {
 }
 
 /// Errors that can occur when creating an iceoryx2 sink.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, thiserror::Error)]
 pub enum Iceoryx2SinkError {
     /// Failed to create the iceoryx2 node.
@@ -671,13 +672,13 @@ pub struct Iceoryx2Sink {
         iceoryx2::port::publisher::Publisher<iceoryx2::service::ipc_threadsafe::Service, [u8], ()>,
 }
 
-/// Creates a new iceoryx2 sink using the `rerun/iceoryx` service.
-///
-/// # Errors
-///
-/// Returns an error if the node, service, or publisher cannot be created.
+#[cfg(not(target_arch = "wasm32"))]
 impl Iceoryx2Sink {
-    /// Creates an iceoryx2 sink using the `rerun/iceoryx` service.
+    /// Creates a new iceoryx2 sink using the `rerun/iceoryx` service.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the node, service, or publisher cannot be created.
     pub fn new() -> Result<Self, Iceoryx2SinkError> {
         let node = NodeBuilder::new().create::<iceoryx2::service::ipc_threadsafe::Service>()?;
 
@@ -696,6 +697,7 @@ impl Iceoryx2Sink {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl LogSink for Iceoryx2Sink {
     fn send(&self, log_msg: LogMsg) {
         // Encode each LogMsg as a complete RRD stream.
