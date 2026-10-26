@@ -24,7 +24,7 @@ pub struct RecordingPanelData<'a> {
     /// All the configured servers.
     pub servers: Vec<ServerData<'a>>,
 
-    /// Application IDs and recordings streaming from an SDK or message proxy.
+    /// Application IDs and recordings streaming from an SDK, message proxy, or iceoryx2.
     pub live_recordings: Vec<AppIdData<'a>>,
 
     /// Application IDs and recordings loaded from other local sources.
@@ -129,13 +129,13 @@ impl<'a> RecordingPanelData<'a> {
             let app_id = entity_db.application_id();
             match entity_db.store_class() {
                 EntityDbClass::LocalRecording => {
-                    let apps = if matches!(
-                        entity_db.data_source.as_ref(),
-                        Some(LogSource::Sdk | LogSource::MessageProxy(_))
-                    ) {
-                        &mut live_recordings
-                    } else {
-                        &mut imported_recordings
+                    let apps = match entity_db.data_source.as_ref() {
+                        Some(LogSource::Sdk | LogSource::MessageProxy(_)) => &mut live_recordings,
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        Some(LogSource::Iceoryx2 { .. }) => &mut live_recordings,
+
+                        _ => &mut imported_recordings,
                     };
                     apps.entry(app_id.clone()).or_default().push(entity_db);
                 }
