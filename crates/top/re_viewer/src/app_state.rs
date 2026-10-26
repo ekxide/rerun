@@ -1214,6 +1214,10 @@ pub(crate) fn create_time_control_for<'cfgs>(
                 | LogSource::MessageProxy { .. }
                 | LogSource::Stdin
                 | LogSource::JsChannel { .. } => true,
+
+                // Live data received through an iceoryx2 service.
+                #[cfg(not(target_arch = "wasm32"))]
+                LogSource::Iceoryx2 { .. } => true,
             }
         } else {
             true // No known source 🤷‍♂️

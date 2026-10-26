@@ -359,6 +359,11 @@ impl ViewerOpenUrl {
                 "Can't share links to recordings streamed from stdin."
             )),
 
+            #[cfg(not(target_arch = "wasm32"))]
+            LogSource::Iceoryx2 { service_name } => Ok(Self::Iceoryx2 {
+                service_name: service_name.clone(),
+            }),
+
             LogSource::RedapGrpcStream { uri, .. } => Ok(Self::RedapDataset(uri.clone())),
 
             LogSource::MessageProxy(proxy_uri) => Ok(Self::RedapProxy(proxy_uri.clone())),

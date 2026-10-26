@@ -98,6 +98,11 @@ impl<'a> RecordingPanelData<'a> {
                     }
                 }
 
+                // An iceoryx2 service can stream recordings over time,
+                // so it is not treated as a loading receiver.
+                #[cfg(not(target_arch = "wasm32"))]
+                LogSource::Iceoryx2 { .. } => {}
+
                 // We only show things we know are very-soon-to-be recordings, which these are not.
                 LogSource::RrdWebEvent
                 | LogSource::JsChannel { .. }

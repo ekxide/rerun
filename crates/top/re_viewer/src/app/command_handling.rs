@@ -274,7 +274,8 @@ impl App {
                 // TODO(emilk): exactly what things get kept and what gets cleared?
                 self.rx_log.retain(|r| match r.source() {
                     LogSource::File { .. } | LogSource::HttpStream { .. } => false,
-
+                    #[cfg(not(target_arch = "wasm32"))]
+                    LogSource::Iceoryx2 { .. } => true,
                     LogSource::JsChannel { .. }
                     | LogSource::RrdWebEvent
                     | LogSource::Sdk
@@ -1774,6 +1775,10 @@ impl App {
                         // Specific GRPC streams should stop streaming when closing them.
                         // TODO(#10967): We still stream in some data after that.
                         LogSource::RedapGrpcStream { .. } => true,
+
+                        // Keep the iceoryx2 connection alive, as it may stream multiple recordings over time.
+                        #[cfg(not(target_arch = "wasm32"))]
+                        LogSource::Iceoryx2 { .. } => false,
 
                         // Don't close generic connections (like to an SDK) that may feed in different recordings over time.
                         LogSource::RrdWebEvent

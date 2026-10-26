@@ -89,6 +89,13 @@ pub enum LogSource {
     /// The data is streaming in from standard input.
     Stdin,
 
+    /// The sender receives data from an iceoryx2 publish-subscribe service.
+    #[cfg(not(target_arch = "wasm32"))]
+    Iceoryx2 {
+        /// Name of the iceoryx2 service.
+        service_name: String,
+    },
+
     /// The data is streaming in directly from a catalog server,
     /// over `rerun://` gRPC interface.
     RedapGrpcStream {
@@ -112,6 +119,10 @@ impl std::fmt::Display for LogSource {
             Self::JsChannel { channel_name } => write!(f, "Javascript channel: {channel_name}"),
             Self::Sdk => "SDK".fmt(f),
             Self::Stdin => "stdin".fmt(f),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => {
+                write!(f, "iceoryx2://{service_name}")
+            }
         }
     }
 }
@@ -134,6 +145,8 @@ impl LogSource {
             | Self::RrdWebEvent
             | Self::RedapGrpcStream { .. } => false,
             Self::JsChannel { .. } | Self::MessageProxy { .. } | Self::Sdk | Self::Stdin => true,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { .. } => true,
         }
     }
 
@@ -144,6 +157,8 @@ impl LogSource {
             | Self::JsChannel { .. }
             | Self::RedapGrpcStream { .. }
             | Self::MessageProxy { .. } => true,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { .. } => false,
         }
     }
 
@@ -158,6 +173,8 @@ impl LogSource {
             | Self::MessageProxy { .. } => RecordingOpenBehavior::OpenAndSelect,
 
             Self::RedapGrpcStream { open_behavior, .. } => *open_behavior,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { .. } => RecordingOpenBehavior::OpenAndSelect,
         }
     }
 
@@ -172,6 +189,8 @@ impl LogSource {
             | Self::Stdin
             | Self::HttpStream { .. }
             | Self::JsChannel { .. } => None,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { .. } => None,
         }
     }
 
@@ -209,6 +228,8 @@ impl LogSource {
                 // These show up in the top panel - see `top_panel.rs`.
                 None
             }
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { .. } => None,
         }
     }
 
@@ -230,6 +251,10 @@ impl LogSource {
             }
             Self::RrdWebEvent | Self::JsChannel { .. } => "Waiting for logging data…".to_owned(),
             Self::Sdk => "Waiting for logging data from SDK".to_owned(),
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => {
+                format!("Waiting for data on iceoryx2 service {service_name}…")
+            }
         }
     }
 

@@ -317,7 +317,10 @@ impl App {
                 | LogSource::JsChannel { .. } => {
                     return true; // We expect data soon, so fade-in
                 }
-
+                #[cfg(not(target_arch = "wasm32"))]
+                LogSource::Iceoryx2 { .. } => {
+                    return true;
+                }
                 // We start a gRPC server by default in native rerun, i.e. when just running `rerun`,
                 // and in that case fading in the welcome screen would be slightly annoying.
                 // However, we also use the gRPC server for sending data from the logging SDKs

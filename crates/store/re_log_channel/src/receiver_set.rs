@@ -65,7 +65,8 @@ impl LogReceiverSet {
             LogSource::HttpStream { url, .. } => url != needle,
             LogSource::MessageProxy(url) => url.to_string() != needle,
             LogSource::RedapGrpcStream { uri, .. } => uri.to_string() != needle,
-
+            #[cfg(not(target_arch = "wasm32"))]
+            LogSource::Iceoryx2 { service_name } => format!("iceoryx2://{service_name}") != needle,
             LogSource::File { .. }
             | LogSource::Stdin
             | LogSource::Sdk

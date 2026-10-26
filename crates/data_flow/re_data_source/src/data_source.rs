@@ -385,7 +385,9 @@ impl LogDataSource {
             Self::Iceoryx2 { service_name } => {
                 use iceoryx2::prelude::*;
 
-                let (tx, rx) = re_log_channel::log_channel(re_log_channel::LogSource::Sdk);
+                let (tx, rx) = re_log_channel::log_channel(re_log_channel::LogSource::Iceoryx2 {
+                    service_name: service_name.clone(),
+                });
 
                 std::thread::spawn(move || {
                     let result = (|| -> anyhow::Result<()> {

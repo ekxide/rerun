@@ -159,6 +159,8 @@ pub fn open_recording(
         re_log_channel::LogSource::JsChannel { .. } => Some("javascript"), // mediated via rerun-js
         re_log_channel::LogSource::Sdk => Some("sdk"),                     // show()
         re_log_channel::LogSource::Stdin => Some("stdin"),
+        #[cfg(not(target_arch = "wasm32"))]
+        re_log_channel::LogSource::Iceoryx2 { .. } => Some("iceoryx2"),
     })?;
 
     Some(OpenRecording {

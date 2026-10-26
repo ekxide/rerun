@@ -229,6 +229,10 @@ impl ItemCollection {
                         Some((ClipboardTextDesc::Url, uri.to_string()))
                     }
                     LogSource::MessageProxy(uri) => Some((ClipboardTextDesc::Url, uri.to_string())),
+                    #[cfg(not(target_arch = "wasm32"))]
+                    LogSource::Iceoryx2 { service_name } => {
+                        Some((ClipboardTextDesc::Url, format!("iceoryx2://{service_name}")))
+                    }
                 },
 
                 Item::AppId(id) => Some((ClipboardTextDesc::AppId, id.to_string())),
