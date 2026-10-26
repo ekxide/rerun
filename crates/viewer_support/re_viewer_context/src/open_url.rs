@@ -589,8 +589,10 @@ impl ViewerOpenUrl {
                     })
             }
             Self::RedapProxy(uri) => Some(LogSource::MessageProxy(uri.clone())),
-            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
-            Self::Iceoryx2 { .. } => None,
+            #[cfg(not(target_arch = "wasm32"))]
+            Self::Iceoryx2 { service_name } => Some(LogSource::Iceoryx2 {
+                service_name: service_name.clone(),
+            }),
             Self::WebEventListener => Some(LogSource::RrdWebEvent),
             Self::WebViewerUrl { url_parameters, .. } => (url_parameters.len() == 1)
                 .then(|| url_parameters.first().get_data_source())
