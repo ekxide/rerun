@@ -120,3 +120,11 @@ impl LogReceiver {
         self.rx.len()
     }
 }
+
+impl Drop for LogReceiver {
+    fn drop(&mut self) {
+        self.channel
+            .receiver_dropped
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+}

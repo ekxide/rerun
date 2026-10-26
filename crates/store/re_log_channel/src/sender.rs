@@ -27,6 +27,14 @@ impl LogSender {
         }
     }
 
+    /// Returns whether the receiving end of the channel has been dropped.
+    #[inline]
+    pub fn is_receiver_dropped(&self) -> bool {
+        self.channel
+            .receiver_dropped
+            .load(std::sync::atomic::Ordering::Acquire)
+    }
+
     /// Send a message to the receiver
     pub fn send(&self, msg: DataSourceMessage) -> Result<(), SendError<Box<DataSourceMessage>>> {
         let source = Arc::clone(&self.source);

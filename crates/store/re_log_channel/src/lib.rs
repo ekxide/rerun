@@ -295,6 +295,9 @@ pub(crate) struct Channel {
     ///
     /// This can be used to wake up the receiver thread.
     waker: RwLock<Option<Box<dyn Fn() + Send + Sync + 'static>>>,
+
+    /// Whether the receiver has been dropped.
+    receiver_dropped: std::sync::atomic::AtomicBool,
 }
 
 /// Create a new communication channel for [`DataSourceMessage`].

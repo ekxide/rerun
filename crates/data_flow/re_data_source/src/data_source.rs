@@ -408,7 +408,10 @@ impl LogDataSource {
                     re_log::debug!("Listening for iceoryx2 messages on service: {service_name}");
 
                     let result = (|| -> anyhow::Result<()> {
-                        while node.wait(std::time::Duration::from_millis(1)).is_ok() {
+                        // Stop receiving when the viewer drops the LogReceiver.
+                        while !tx.is_receiver_dropped()
+                            && node.wait(std::time::Duration::from_millis(1)).is_ok()
+                        {
                             while let Some(sample) = subscriber.receive()? {
                                 let bytes = sample.payload();
 
