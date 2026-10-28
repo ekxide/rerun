@@ -27,7 +27,11 @@ impl LogSender {
         }
     }
 
-    /// Returns whether the receiving end of the channel has been dropped.
+    /// Returns `true` if the receiving end of the channel has been dropped.
+    ///
+    /// Once the receiver is dropped, this method will always return `true`.
+    /// Background senders can use this to stop processing when the
+    /// receiver is no longer available.
     #[inline]
     pub fn is_receiver_dropped(&self) -> bool {
         self.channel

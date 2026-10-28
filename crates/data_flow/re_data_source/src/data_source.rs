@@ -62,8 +62,12 @@ pub enum LogDataSource {
     /// A `rerun+http://` URI pointing to a proxy.
     RedapProxy(re_uri::ProxyUri),
 
-    #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
-    Iceoryx2 { service_name: String },
+    /// Receives Rerun log messages from a local iceoryx2 publish-subscribe service.
+    #[cfg(not(target_arch = "wasm32"))]
+    Iceoryx2 {
+        /// Name of the iceoryx2 service, e.g. `rerun/iceoryx`.
+        service_name: String,
+    },
 }
 
 /// Options for [`LogDataSource::from_uri`].
@@ -420,7 +424,7 @@ impl LogDataSource {
                                 let bytes = sample.payload();
 
                                 re_log::trace!("Received {} bytes over iceoryx2", bytes.len());
-
+                                // Each iceoryx2 sample contains a complete RRD stream.
                                 let cursor = std::io::Cursor::new(bytes);
                                 let reader = std::io::BufReader::new(cursor);
 

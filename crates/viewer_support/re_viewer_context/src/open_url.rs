@@ -67,9 +67,14 @@ pub enum ViewerOpenUrl {
     /// See also [`LogDataSource::RedapProxy`].
     RedapProxy(re_uri::ProxyUri),
 
-    //Iceoryx2
+    /// A URL pointing to a local iceoryx2 publish-subscribe service.
+    ///
+    /// See also [`LogDataSource::Iceoryx2`].
     #[cfg(not(target_arch = "wasm32"))]
-    Iceoryx2 { service_name: String },
+    Iceoryx2 {
+        /// Name of the iceoryx2 service, e.g. `rerun/iceoryx`.
+        service_name: String,
+    },
 
     /// A URL that points to a redap server.
     RedapCatalog(re_uri::CatalogUri),
@@ -122,7 +127,6 @@ impl std::fmt::Debug for ViewerOpenUrl {
             Self::WebEventListener => write!(f, "WebEventListener"),
             #[cfg(not(target_arch = "wasm32"))]
             Self::Iceoryx2 { service_name } => {
-                //Iceroyx2
                 write!(f, "Iceoryx2({service_name})")
             }
             Self::WebViewerUrl {
@@ -226,7 +230,7 @@ impl ViewerOpenUrl {
                 LogDataSource::RedapProxy(proxy_uri) => Ok(Self::RedapProxy(proxy_uri)),
 
                 #[cfg(not(target_arch = "wasm32"))]
-                LogDataSource::Iceoryx2 { service_name } => Ok(Self::Iceoryx2 { service_name }), //Iceoryx2
+                LogDataSource::Iceoryx2 { service_name } => Ok(Self::Iceoryx2 { service_name }),
             }
         } else if let Ok(url) = parse_webviewer_url(url) {
             // Web viewer URL with `url` parameters.
@@ -481,7 +485,7 @@ impl ViewerOpenUrl {
             Self::RedapProxy(proxy_uri) => {
                 vec1![proxy_uri.to_string()]
             }
-            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+            #[cfg(not(target_arch = "wasm32"))]
             Self::Iceoryx2 { service_name } => {
                 vec1![format!("iceoryx2://{service_name}")]
             }
@@ -767,7 +771,7 @@ impl ViewerOpenUrl {
             #[cfg(not(target_arch = "wasm32"))]
             Self::FilePath(..) => self,
 
-            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+            #[cfg(not(target_arch = "wasm32"))]
             Self::Iceoryx2 { .. } => self,
 
             Self::ChunkStoreBrowser { .. } => self,
@@ -805,7 +809,7 @@ impl ViewerOpenUrl {
                 }
             }
             Self::RedapProxy(..) => None,
-            #[cfg(not(target_arch = "wasm32"))] //Iceroyx2
+            #[cfg(not(target_arch = "wasm32"))]
             Self::Iceoryx2 { .. } => None,
             Self::RedapCatalog(..) => None,
             Self::RedapEntry(..) => None,

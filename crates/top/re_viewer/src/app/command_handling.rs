@@ -1675,7 +1675,7 @@ impl App {
                     false
                 }
             }
-            #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+            #[cfg(not(target_arch = "wasm32"))]
             ViewerOpenUrl::Iceoryx2 { .. } => false,
 
             // Not a place to land on after closing a recording.

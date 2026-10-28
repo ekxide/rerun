@@ -610,16 +610,6 @@ impl LogSink for GrpcSink {
     fn send(&self, mut log_msg: LogMsg) {
         // Used for latency measurements:
         log_msg.track_latency(re_sorbet::LatencyLocation::GrpcSink);
-        //kodiert log_msg test maxim
-        //         let mut encoder = re_log_encoding::Encoder::local().unwrap();
-        //
-        //         encoder.append(&log_msg).unwrap();
-        //
-        //         encoder.finish().unwrap();
-        //
-        //         let bytes = encoder.into_inner().unwrap();
-        //
-        //         println!("Serialized LogMsg: {} bytes", bytes.len());
 
         self.client.send_blocking(log_msg);
     }

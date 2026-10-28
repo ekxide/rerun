@@ -296,7 +296,8 @@ pub(crate) struct Channel {
     /// This can be used to wake up the receiver thread.
     waker: RwLock<Option<Box<dyn Fn() + Send + Sync + 'static>>>,
 
-    /// Whether the receiver has been dropped.
+    /// Set when the receiver is dropped, allowing background senders
+    /// to detect that their data is no longer needed.
     receiver_dropped: std::sync::atomic::AtomicBool,
 }
 

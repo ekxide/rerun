@@ -2007,7 +2007,7 @@ impl ReceiversFromUrlParams {
                     LogDataSource::Stdin => {
                         data_sources.push(data_source);
                     }
-                    #[cfg(not(target_arch = "wasm32"))] //Iceoryx2
+                    #[cfg(not(target_arch = "wasm32"))]
                     LogDataSource::Iceoryx2 { .. } => {
                         urls_to_pass_on_to_viewer.push(url);
                     }
