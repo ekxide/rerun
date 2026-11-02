@@ -388,6 +388,8 @@ impl LogDataSource {
             #[cfg(not(target_arch = "wasm32"))]
             Self::Iceoryx2 { service_name } => {
                 use iceoryx2::prelude::*;
+                use re_log_encoding::ToApplication as _;
+                use re_protos::external::prost::Message as _;
 
                 // Initialize iceoryx2 before spawning the receiving thread.
                 let node =
@@ -412,6 +414,10 @@ impl LogDataSource {
                     re_log::debug!("Listening for iceoryx2 messages on service: {service_name}");
 
                     let result = (|| -> anyhow::Result<()> {
+                        // Retain application IDs across messages for legacy StoreId compatibility.
+                        let mut app_id_injector =
+                            re_log_encoding::CachingApplicationIdInjector::default();
+
                         while !tx.is_receiver_dropped() {
                             match node.wait(std::time::Duration::from_millis(1)) {
                                 Ok(()) => {}
@@ -420,23 +426,22 @@ impl LogDataSource {
                                     return Ok(());
                                 }
                             }
+
                             while let Some(sample) = subscriber.receive()? {
                                 let bytes = sample.payload();
 
                                 re_log::trace!("Received {} bytes over iceoryx2", bytes.len());
-                                // Each iceoryx2 sample contains a complete RRD stream.
-                                let cursor = std::io::Cursor::new(bytes);
-                                let reader = std::io::BufReader::new(cursor);
 
-                                let decoder = re_log_encoding::DecoderApp::decode_eager(reader)?;
+                                // Each iceoryx2 sample contains one protobuf LogMsg.
+                                let transport_msg =
+                                    re_protos::log_msg::v1alpha1::LogMsg::decode(bytes)?;
 
-                                for msg in decoder {
-                                    let msg = msg?;
+                                let msg =
+                                    transport_msg.to_application((&mut app_id_injector, None))?;
 
-                                    if tx.send(msg.into()).is_err() {
-                                        // Viewer no longer wants the data.
-                                        return Ok(());
-                                    }
+                                if tx.send(msg.into()).is_err() {
+                                    // Viewer no longer wants the data.
+                                    return Ok(());
                                 }
                             }
                         }

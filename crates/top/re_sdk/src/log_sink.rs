@@ -7,9 +7,13 @@ use iceoryx2::prelude::*;
 use parking_lot::Mutex;
 use re_chunk::ChunkBatcherConfig;
 use re_grpc_client::write::{Client as MessageProxyClient, GrpcFlushError, Options};
+#[cfg(not(target_arch = "wasm32"))]
+use re_log_encoding::ToTransport as _;
 use re_log_encoding::{EncodeError, Encoder};
 use re_log_msg::{BlueprintActivationCommand, LogMsg};
 use re_log_types::StoreId;
+#[cfg(not(target_arch = "wasm32"))]
+use re_protos::external::prost::Message as _;
 
 use crate::RecordingStream;
 
@@ -690,32 +694,18 @@ impl Iceoryx2Sink {
 #[cfg(not(target_arch = "wasm32"))]
 impl LogSink for Iceoryx2Sink {
     fn send(&self, log_msg: LogMsg) {
-        // Encode each LogMsg as a complete RRD stream.
-        let mut encoder = match re_log_encoding::Encoder::local() {
-            Ok(encoder) => encoder,
+        // Convert the application message to Rerun's protobuf transport representation.
+        let transport_msg = match log_msg.to_transport(re_log_encoding::rrd::Compression::LZ4) {
+            Ok(msg) => msg,
             Err(err) => {
-                re_log::error!("Failed to create RRD encoder: {err}");
+                re_log::error!("Failed to convert LogMsg to transport format: {err}");
                 return;
             }
         };
 
-        if let Err(err) = encoder.append(&log_msg) {
-            re_log::error!("Failed to encode LogMsg: {err}");
-            return;
-        }
-
-        if let Err(err) = encoder.finish() {
-            re_log::error!("Failed to finish RRD encoding: {err}");
-            return;
-        }
-
-        let bytes = match encoder.into_inner() {
-            Ok(bytes) => bytes,
-            Err(err) => {
-                re_log::error!("Failed to extract encoded bytes: {err}");
-                return;
-            }
-        };
+        // The protobuf wrapper identifies the actual LogMsg variant (oneof).
+        let protobuf_msg: re_protos::log_msg::v1alpha1::LogMsg = transport_msg.into();
+        let bytes = protobuf_msg.encode_to_vec();
 
         let sample = match self.publisher.loan_slice_uninit(bytes.len()) {
             Ok(sample) => sample,
