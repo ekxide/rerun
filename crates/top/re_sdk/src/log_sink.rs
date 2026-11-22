@@ -658,8 +658,8 @@ pub enum Iceoryx2SinkError {
 
 /// A log sink that transports Rerun messages using iceoryx2 shared memory.
 ///
-/// Each LogMsg is encoded into a separate RRD stream before being
-/// published to the configured iceoryx2 service.
+/// Each LogMsg is encoded as a protobuf message directly into
+/// iceoryx2 shared memory.
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Iceoryx2Sink {
     publisher:
@@ -703,11 +703,14 @@ impl LogSink for Iceoryx2Sink {
             }
         };
 
-        // The protobuf wrapper identifies the actual LogMsg variant (oneof).
+        // Wrap the protobuf oneof variant in a complete protobuf LogMsg.
         let protobuf_msg: re_protos::log_msg::v1alpha1::LogMsg = transport_msg.into();
-        let bytes = protobuf_msg.encode_to_vec();
 
-        let sample = match self.publisher.loan_slice_uninit(bytes.len()) {
+        // Calculate the required size of the encoded protobuf message.
+        let encoded_len = protobuf_msg.encoded_len();
+
+        // Allocate initialized shared memory for the protobuf message.
+        let mut sample = match self.publisher.loan_slice(encoded_len) {
             Ok(sample) => sample,
             Err(err) => {
                 re_log::error!("Failed to loan iceoryx2 sample: {err}");
@@ -715,14 +718,20 @@ impl LogSink for Iceoryx2Sink {
             }
         };
 
-        let sample = sample.write_from_slice(&bytes);
+        // Encode the protobuf message directly into shared memory.
+        let mut buffer = sample.payload_mut();
+
+        if let Err(err) = protobuf_msg.encode(&mut buffer) {
+            re_log::error!("Failed to encode protobuf message: {err}");
+            return;
+        }
 
         if let Err(err) = sample.send() {
             re_log::error!("Failed to publish iceoryx2 sample: {err}");
             return;
         }
 
-        re_log::trace!("Sent {} bytes over iceoryx2", bytes.len());
+        re_log::trace!("Sent {encoded_len} bytes over iceoryx2");
     }
 
     fn flush_blocking(&self, _timeout: Duration) -> Result<(), SinkFlushError> {
